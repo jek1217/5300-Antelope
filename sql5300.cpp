@@ -4,17 +4,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <cstring>
+#include <cassert>
 #include <db_cxx.h>
 #include "SQLParser.h"
 #include "sqlhelper.h"
+#include "heap_storage.h"
 
 using namespace std;
 using namespace hsql;
 
-
 string handleTableNameRef(TableRef* t);
 string handleExpr(Expr* expr);
 string execute(const SQLStatement* st);
+DbEnv* _DB_ENV;
 
 int main(int argc, char* argv[]){
 
@@ -46,7 +49,7 @@ int main(int argc, char* argv[]){
    cout << e.what() << endl;
    exit(-1);
   }
-
+  _DB_ENV = &env;
   //Confirm that the database is working now
   cout << "( " << argv[0] << ": running with database environment: " << envHome << ")" << endl;
 
@@ -60,6 +63,10 @@ int main(int argc, char* argv[]){
     }
     if(que == "quit"){
       cont = false;
+    }
+    if(que == "test"){
+        cout << "test_heap_storage: " << (test_heap_storage() ? "ok" : "failed") << endl;
+	continue;
     }
     else{
       SQLParserResult* result = SQLParser::parseSQLString(que);
