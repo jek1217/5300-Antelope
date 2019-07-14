@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "heap_storage.h"
-
+typedef u_int16_t u16;
 using namespace std;
 
 //Slotted Page section
@@ -41,28 +41,29 @@ RecordID SlottedPage :: add(const Dbt* data) throw(DbBlockNoRoomError){
 }
 
 Dbt* SlottedPage :: get(RecordID record_id){
-	uint16_t size = 0;
-	uint16_t location = 0;
+	uint16_t size;
+	uint16_t location;
 
 	get_header(size, location, record_id);
 
 	if(location == 0){
 		return nullptr;
 	}
-	char* rec = new char[size];
-    	memcpy(rec, this->address(location), size);
-    	Dbt* returningRecord = new Dbt(rec, size);
+	//char* rec = new char[size];
+    	//memcpy(rec, this->address(location), size);
+    	//Dbt* returningRecord = new Dbt(rec, size);
+	Dbt* returningRecord = new Dbt(this->address(location), size);
 	return returningRecord;
 }
 
 void SlottedPage :: put(RecordID record_id, const Dbt &data) throw(DbBlockNoRoomError){
-	uint16_t size = 0;
-	uint16_t location = 0;
+	uint16_t size;
+	uint16_t location;
 
 	get_header(size, location, record_id);
 
 	//check size
-	uint16_t check = data.get_size();
+	uint16_t check = (u16) data.get_size();
 	if(check > size){
 		uint16_t excess = check - size;
 		if(!has_room(excess)){
@@ -83,10 +84,10 @@ void SlottedPage :: put(RecordID record_id, const Dbt &data) throw(DbBlockNoRoom
 }
 
 void SlottedPage :: del(RecordID record_id){
-	uint16_t size = 0;
-	uint16_t location = 0;
+	uint16_t size;
+	uint16_t location;
 	get_header(size, location, record_id);
-	put_header(record_id);
+	put_header(record_id,0,0);
 	slide(location, location + size);
 }
 
@@ -95,12 +96,15 @@ RecordIDs* SlottedPage :: ids(void){
 	uint16_t location = 0;
 	uint16_t recordNum = this->num_records;
 
-	RecordIDs* recordIDVector = new RecordIDs(recordNum);
+	RecordIDs* recordIDVector = new RecordIDs();
+
+	//cout<<"recordNum="<<recordNum<<endl;
 
 	for(int i = 1; i <= recordNum; i++){
 		get_header(size, location, i);
 		if(location != 0){
 			recordIDVector->push_back(i);
+			//cout<<"pushed "<<i<<" records"<<endl;
 		}
 	}
 	return recordIDVector;
@@ -135,27 +139,36 @@ void SlottedPage :: get_header(uint16_t &size, uint16_t &location, RecordID id){
 }
 
 bool SlottedPage :: has_room(uint16_t size){
-	uint16_t remainingRoom = end_free - ((num_records + 1) * 4);
+	/*uint16_t remainingRoom = end_free - ((num_records + 1) * 4);
 	//CHECK IF THIS IS CORRECT
 	return (remainingRoom >= size);
+	*/
+    u16 available = this->end_free - (this->num_records + 1) * 4;
+    return size <= available;
 }
 
 void SlottedPage :: slide(uint16_t start, uint16_t end){
-	uint16_t difference = end - start;
-	memcpy(address(end_free + difference + 1), address(end_free + 1), difference);
-	RecordIDs* recordIDVector = ids();
-	for(RecordID recordID : *recordIDVector){
-		uint16_t size = 0;
-		uint16_t location = 0;
+u16 shift = end - start;
+    if (shift == 0) {
+        return;
+    }
+    void* from = this->address((u16)this->end_free + 1);
+    void* to = this ->address((u16)this ->end_free + 1 + shift);
+    uint sizeOfPage = (start - this->end_free + 1);
+    memmove(to, from, sizeOfPage);
 
-		get_header(size, location, recordID);
-		if(start >= location){
-			location += difference;
-			put_header(recordID, size, location);
-		}
-	}
-	end_free += difference;
-	put_header();
+    u16 loc, size;
+
+    //iterating through the records and put the values accordingly
+    for(int i = 1; i <= this->num_records; i++){
+        this->get_header(size, loc, i);
+        if (loc <= start) {
+            loc += shift;
+            this->put_header(i, size, loc);
+        }
+    }
+    this->end_free += shift;
+    this->put_header();
 }
 
 uint16_t SlottedPage :: get_n(uint16_t offset){
@@ -225,13 +238,14 @@ void* SlottedPage :: address(uint16_t offset){
 			ids->push_back(i);
 		}
 		return ids;
-		}
+	}
 	
 	void HeapFile :: db_open(uint flags){
 		if(!this->closed){
 			return;
 		}
-			//this->db=db(_DB_ENV,0);
+		this->db.set_re_len(DbBlock::BLOCK_SZ);	
+		//this->db=db(_DB_ENV,0);
 			const char* dbEnvHome=nullptr;
 			_DB_ENV->get_home(&dbEnvHome);
 			//string dbEnvHomeStr(dbEnvHome);
@@ -244,7 +258,6 @@ void* SlottedPage :: address(uint16_t offset){
     			this->dbfilename = str;			
 
 			cout<<"dbfilename="<<this->dbfilename<<endl;
-			this->db.set_re_len(DbBlock::BLOCK_SZ);
 			//this->dbfilename= this->name + ".db"; 
 			
 			this->db.open(nullptr, this->dbfilename.c_str(), nullptr, DB_RECNO, flags,0);
@@ -275,7 +288,7 @@ void HeapTable :: create_if_not_exists(){
     this->file.open();
   }
   catch(exception &e){
-    this->file.create();
+    this->create();
   }
 }
 
@@ -298,7 +311,7 @@ Handle HeapTable :: insert(const ValueDict* row){
 
 //HeapTable implementation for Milestone2 requires: create, create_if_not_exists, open, close, and drop + insert
 void HeapTable :: update(const Handle handle, const ValueDict* new_values){
-
+  throw DbRelationError("Update is not supported yet");
 }
 
 void HeapTable :: del(const Handle handle){
@@ -315,8 +328,12 @@ Handles* HeapTable :: select(){
   for (auto const& block_id : *block_ids){    
     SlottedPage* block = file.get(block_id);
     RecordIDs* record_ids = block->ids();
-    for (auto const& record_id: *record_ids)
+    cout<<"record_ids size="<<record_ids->size()<<endl;
+    //int i=0;
+    for (auto const& record_id: *record_ids){
       handles->push_back(Handle(block_id, record_id));
+      //cout<<"pushed "<<++i<<" hanldes"<<endl;
+    }
     delete record_ids;
     delete block;
   }
@@ -507,12 +524,12 @@ bool test_heap_storage() {
   std::cout << "project ok" << std::endl;
   
   Value value = (*result)["a"];
-  std::cout << "a=" <<value.n<< std::endl;
+  //std::cout << "a=" <<value.n<< std::endl;
   if (value.n != 12)
     return false;
   
   value = (*result)["b"];
-  std::cout << "b=" <<value.s<< std::endl;
+  //std::cout << "b=" <<value.s<< std::endl;
   if (value.s != "Hello!")
     return false;
   
