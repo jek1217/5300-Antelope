@@ -34,5 +34,3 @@ Sprint Verano:
  
  
  
-Sprint Otono
-    
