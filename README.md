@@ -20,11 +20,17 @@ Sprint Verano:
       properly, which is attributing to failing the test.
       
  heap_storage.cpp is where most of our implementation lies.
+ 
  sql5300.cpp is the driver of the files.
+ 
  There is nothing special about the Makefile. It is the exact one that the professor gave us.
+ 
  Other files include:
+ 
  heap_storage.h
+ 
  storage_engine.h
+ 
  
 Sprint Otono
     
