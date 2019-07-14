@@ -63,6 +63,7 @@ int main(int argc, char* argv[]){
     }
     if(que == "quit"){
       cont = false;
+      continue;
     }
     if(que == "test"){
         cout << "test_heap_storage: " << (test_heap_storage() ? "ok" : "failed") << endl;
