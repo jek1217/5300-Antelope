@@ -159,7 +159,48 @@ QueryResult *SQLExec::create_table(const CreateStatement *statement) {
 }
 
 QueryResult *SQLExec::create_index(const CreateStatement *statement) {
-    return new QueryResult("create index not implemented");  // FIXME
+    SQLExec::indices = new Indices();
+    Identifier table_name = statement->tableName;
+    Identifier index_name = statement->indexName;
+    Identifier index_type;
+    bool is_unique;
+
+    Handles columnHandles;
+
+    try{
+        index_type = statement->indexType;
+    } catch (exception &e){
+        index_type = "BTREE";
+    }
+    
+    if (index_type == "BTREE"){
+        is_unique = true;
+    } else {
+        is_unique = false;
+    }
+    ValueDict row;
+    row["table_name"] = table_name;
+    row["index_name"] = index_name;
+    row["seq_in_index"] = 0;
+    row["index_type"] = index_type;
+    row["is_unique"] = is_unique;
+
+    try{
+        for (auto const &col : *statement->indexColumns){
+            row["seq_in_index"].n += 1;
+            row["column_name"] = string(col);
+            columnHandles.push_back(SQLExec::indices->insert(&row));
+        }
+        DbIndex &index = SQLExec::indices->get_index(table_name, index_name);
+    } catch (exception &e) {
+        for (auto const &handle : columnHandles) {
+            SQLExec::indices->del(handle);
+        }
+        throw;
+    }
+
+    delete indices;
+    return new QueryResult("Created index " + index_name);
 }
 
 // DROP ...
