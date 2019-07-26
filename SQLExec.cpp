@@ -8,6 +8,7 @@ using namespace std;
 using namespace hsql;
 
 Tables* SQLExec::tables = nullptr;
+Indices* SQLExec::indices = nullptr;
 
 ostream &operator<<(ostream &out, const QueryResult &qres) {
     if (qres.column_names != nullptr) {
@@ -59,6 +60,8 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
     // initialize _tables table, if not yet present
     if (SQLExec::tables == nullptr)
         SQLExec::tables = new Tables();
+    if (SQLExec::indices == nullptr)
+        SQLExec::indices = new Indices();
 
     try {
         switch (statement->type()) {
@@ -199,7 +202,23 @@ QueryResult *SQLExec::drop_table(const DropStatement *statement) {
 }
 
 QueryResult *SQLExec::drop_index(const DropStatement *statement) {
-    return new QueryResult("drop index not implemented");  // FIXME
+    Identifier table_name = statement->name;
+    Identifier index_name = statement->indexName;
+
+    DbIndex& index = SQLExec::indices->get_index(table_name, index_name);
+
+    ValueDict where;
+    where["table_name"] = Value(table_name);
+    where["index_name"] = Value(index_name);
+
+    Handles* handles = SQLExec::indices->select(&where);
+    for (auto const& handle: *handles)
+        SQLExec::indices->del(handle);
+    delete handles;
+
+    index.drop();
+    
+    return new QueryResult(string("dropped index ") + index_name);
 }
 
 QueryResult *SQLExec::show(const ShowStatement *statement) {
