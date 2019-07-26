@@ -276,8 +276,6 @@ QueryResult *SQLExec::show(const ShowStatement *statement) {
 }
 
 QueryResult *SQLExec::show_index(const ShowStatement *statement) {
-    DbRelation& indices = SQLExec::tables->get_table(Indices::TABLE_NAME);
-
     ColumnNames* column_names = new ColumnNames;
     column_names->push_back("table_name");
     column_names->push_back("index_name");
@@ -296,12 +294,12 @@ QueryResult *SQLExec::show_index(const ShowStatement *statement) {
 
     ValueDict where;
     where["table_name"] = Value(statement->tableName);
-    Handles* handles = indices.select(&where);
+    Handles* handles = SQLExec::indices->select(&where);
     u_long n = handles->size();
 
     ValueDicts* rows = new ValueDicts;
     for (auto const& handle: *handles) {
-        ValueDict* row = indices.project(handle, column_names);
+        ValueDict* row = SQLExec::indices->project(handle, column_names);
         rows->push_back(row);
     }
     delete handles;
