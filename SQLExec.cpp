@@ -276,7 +276,9 @@ QueryResult *SQLExec::show(const ShowStatement *statement) {
 }
 
 QueryResult *SQLExec::show_index(const ShowStatement *statement) {
-    ColumnNames* column_names = new ColumnNames;
+    SQLExec::indices = new Indices();    
+
+    ColumnNames* column_names = new ColumnNames();
     column_names->push_back("table_name");
     column_names->push_back("index_name");
     column_names->push_back("seq_in_index");
@@ -284,13 +286,8 @@ QueryResult *SQLExec::show_index(const ShowStatement *statement) {
     column_names->push_back("index_type");
     column_names->push_back("is_unique");
 
-    ColumnAttributes* column_attributes = new ColumnAttributes;
+    ColumnAttributes* column_attributes = new ColumnAttributes();
     column_attributes->push_back(ColumnAttribute(ColumnAttribute::TEXT));
-    column_attributes->push_back(ColumnAttribute(ColumnAttribute::TEXT));
-    column_attributes->push_back(ColumnAttribute(ColumnAttribute::INT));
-    column_attributes->push_back(ColumnAttribute(ColumnAttribute::TEXT));
-    column_attributes->push_back(ColumnAttribute(ColumnAttribute::TEXT));
-    column_attributes->push_back(ColumnAttribute(ColumnAttribute::BOOLEAN));
 
     ValueDict where;
     where["table_name"] = Value(statement->tableName);
@@ -302,7 +299,9 @@ QueryResult *SQLExec::show_index(const ShowStatement *statement) {
         ValueDict* row = SQLExec::indices->project(handle, column_names);
         rows->push_back(row);
     }
+
     delete handles;
+    delete indices;
     return new QueryResult(column_names, column_attributes, rows,
                            "successfully returned " + to_string(n) + " rows");
 }
