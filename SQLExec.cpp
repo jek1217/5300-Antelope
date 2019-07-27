@@ -286,12 +286,6 @@ QueryResult *SQLExec::show_index(const ShowStatement *statement) {
     column_names->push_back("index_type");
     column_names->push_back("is_unique");
 
-<<<<<<< HEAD
-=======
-    ColumnAttributes* column_attributes = new ColumnAttributes();
-    column_attributes->push_back(ColumnAttribute(ColumnAttribute::TEXT));
-
->>>>>>> b32dc9ebc185240e69ba702c6d54693cc1c03ab9
     ValueDict where;
     where["table_name"] = Value(statement->tableName);
     Handles* handles = indices->select(&where);
@@ -304,12 +298,7 @@ QueryResult *SQLExec::show_index(const ShowStatement *statement) {
     }
 
     delete handles;
-<<<<<<< HEAD
     return new QueryResult(column_names, nullptr, rows,
-=======
-    delete indices;
-    return new QueryResult(column_names, column_attributes, rows,
->>>>>>> b32dc9ebc185240e69ba702c6d54693cc1c03ab9
                            "successfully returned " + to_string(n) + " rows");
 }
 
