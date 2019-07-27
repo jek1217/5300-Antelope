@@ -1,6 +1,6 @@
 /**
  * @file SQLExec.cpp - implementation of SQLExec class 
- * @author Kevin Lundeen
+ * @author Kevin Lundeen, Jake Ladera, Jiaxin Dong
  * @see "Seattle University, CPSC5300, Summer 2018"
  */
 #include "SQLExec.h"
@@ -10,6 +10,7 @@ using namespace hsql;
 Tables* SQLExec::tables = nullptr;
 Indices* SQLExec::indices = nullptr;
 
+// prints results to screen
 ostream &operator<<(ostream &out, const QueryResult &qres) {
     if (qres.column_names != nullptr) {
         for (auto const &column_name: *qres.column_names)
@@ -43,6 +44,7 @@ ostream &operator<<(ostream &out, const QueryResult &qres) {
     return out;
 }
 
+// cleans up query
 QueryResult::~QueryResult() {
     if (column_names != nullptr)
         delete column_names;
@@ -55,7 +57,7 @@ QueryResult::~QueryResult() {
     }
 }
 
-
+// executes a sql statement, throws if not supported
 QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError) {
     // initialize _tables table, if not yet present
     if (SQLExec::tables == nullptr)
@@ -79,6 +81,7 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
     }
 }
 
+// sets input column attribute to input data type
 void SQLExec::column_definition(const ColumnDefinition *col, Identifier& column_name,
                                 ColumnAttribute& column_attribute) {
     column_name = col->name;
@@ -95,6 +98,7 @@ void SQLExec::column_definition(const ColumnDefinition *col, Identifier& column_
     }
 }
 
+// creates table or index
 QueryResult *SQLExec::create(const CreateStatement *statement) {
     switch(statement->type) {
         case CreateStatement::kTable:
@@ -106,6 +110,9 @@ QueryResult *SQLExec::create(const CreateStatement *statement) {
     }
 }
  
+// creates a table
+// input: sql statement with table and columns
+// output: result from querying
 QueryResult *SQLExec::create_table(const CreateStatement *statement) {
     Identifier table_name = statement->tableName;
     ColumnNames column_names;
@@ -158,6 +165,9 @@ QueryResult *SQLExec::create_table(const CreateStatement *statement) {
     return new QueryResult("created " + table_name);
 }
 
+// creates index for a table
+// input: sql statement with index and table
+// output: result from querying
 QueryResult *SQLExec::create_index(const CreateStatement *statement) {
     Identifier table_name = statement->tableName;
     Identifier index_name = statement->indexName;
@@ -211,6 +221,9 @@ QueryResult *SQLExec::drop(const DropStatement *statement) {
     }
 }
  
+// drops table
+// input: sql statement
+// output: result from querying
 QueryResult *SQLExec::drop_table(const DropStatement *statement) {
     Identifier table_name = statement->name;
     if (table_name == Tables::TABLE_NAME || table_name == Columns::TABLE_NAME || table_name == Indices::TABLE_NAME)
@@ -238,6 +251,9 @@ QueryResult *SQLExec::drop_table(const DropStatement *statement) {
     return new QueryResult(string("dropped ") + table_name);
 }
 
+// drops index from table
+// input: sql statement
+// output: result from querying
 QueryResult *SQLExec::drop_index(const DropStatement *statement) {
     Identifier table_name = statement->name;
     Identifier index_name = statement->indexName;
@@ -262,6 +278,9 @@ QueryResult *SQLExec::drop_index(const DropStatement *statement) {
     return new QueryResult(string("dropped index ") + index_name);
 }
 
+// shows tables, columns, or index if input sql is valid
+// input: sql statement
+// output: result from querying
 QueryResult *SQLExec::show(const ShowStatement *statement) {
     switch (statement->type) {
         case ShowStatement::kTables:
@@ -275,6 +294,9 @@ QueryResult *SQLExec::show(const ShowStatement *statement) {
     }
 }
 
+// shows all indexes for a table
+// input: sql statement
+// output: result from querying
 QueryResult *SQLExec::show_index(const ShowStatement *statement) {
     SQLExec::indices = new Indices();    
 
@@ -302,6 +324,9 @@ QueryResult *SQLExec::show_index(const ShowStatement *statement) {
                            "successfully returned " + to_string(n) + " rows");
 }
 
+// shows all tables in database
+// input: none
+// output: result from querying
 QueryResult *SQLExec::show_tables() {
     ColumnNames* column_names = new ColumnNames;
     column_names->push_back("table_name");
@@ -324,6 +349,9 @@ QueryResult *SQLExec::show_tables() {
                            "successfully returned " + to_string(n) + " rows");
 }
 
+// shows the columns for a table
+// input: sql statement
+// output: result from querying
 QueryResult *SQLExec::show_columns(const ShowStatement *statement) {
     DbRelation& columns = SQLExec::tables->get_table(Columns::TABLE_NAME);
 
