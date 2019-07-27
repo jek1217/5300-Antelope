@@ -235,6 +235,13 @@ QueryResult *SQLExec::drop_table(const DropStatement *statement) {
     // get the table
     DbRelation& table = SQLExec::tables->get_table(table_name);
 
+    // drop the indexes
+    Handles* indexHandles = indices->select(&where);
+    for (auto const& handle: *indexHandles) {
+        indices->del(handle);
+    }
+    delete indexHandles;
+
     // remove from _columns schema
     DbRelation& columns = SQLExec::tables->get_table(Columns::TABLE_NAME);
     Handles* handles = columns.select(&where);
