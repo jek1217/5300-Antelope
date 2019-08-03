@@ -1,9 +1,17 @@
+//Completed Milestone 5 by Joshua Halbert
+//still needs cleaning and commenting before delivery
+//all tests pass
+
 /**
  * @file SQLExec.cpp - implementation of SQLExec class 
  * @author Kevin Lundeen, Jake Ladera, Jiaxin Dong
  * @see "Seattle University, CPSC5300, Summer 2018"
  */
+#include <algorithm>
 #include "SQLExec.h"
+#include "EvalPlan.h"
+#include <sstream>
+
 using namespace std;
 using namespace hsql;
 
@@ -60,10 +68,10 @@ QueryResult::~QueryResult() {
 // executes a sql statement, throws if not supported
 QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError) {
     // initialize _tables table, if not yet present
-    if (SQLExec::tables == nullptr)
+    if (SQLExec::tables == nullptr) {
         SQLExec::tables = new Tables();
-    if (SQLExec::indices == nullptr)
-        SQLExec::indices = new Indices();
+		SQLExec::indices = new Indices();
+	}
 
     try {
         switch (statement->type()) {
@@ -73,6 +81,12 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
                 return drop((const DropStatement *) statement);
             case kStmtShow:
                 return show((const ShowStatement *) statement);
+            case kStmtInsert:
+                return insert((const InsertStatement *) statement);
+            case kStmtDelete:
+                return del((const DeleteStatement *) statement);
+            case kStmtSelect:
+                return select((const SelectStatement *) statement);
             default:
                 return new QueryResult("not implemented");
         }
@@ -383,4 +397,195 @@ QueryResult *SQLExec::show_columns(const ShowStatement *statement) {
     delete handles;
     return new QueryResult(column_names, column_attributes, rows,
                            "successfully returned " + to_string(n) + " rows");
+}
+
+
+QueryResult *SQLExec::insert(const InsertStatement *statement) {
+    //construct the ValueDict row
+    //insert the ValueDict row
+    //also add to any indices
+    //useful methods are get_table, get_index_names, and get_index
+    //column order may differ from other in table def.
+    
+    //get the table
+    DbRelation& table = SQLExec::tables->get_table(statement->tableName);
+   
+    //get the columns FIXME what if there are none given?
+    ColumnNames column_names;
+    
+    //handle if no columns given (pretend default order)
+    if(statement->columns == nullptr) {
+        column_names = table.get_column_names();
+    }
+    else {
+        for (auto const &column: *statement->columns) {
+            column_names.push_back(column);
+        }
+    }
+    
+    //get the values
+    ValueDict values;
+    int valCount = 0;
+    for (Expr *expr : *statement->values) {
+        
+        //either ival or name
+        Value val;
+        switch(expr->type) {
+            case(kExprLiteralString):
+                val = Value(expr->name);
+                break;
+            case(kExprLiteralInt):
+                val = Value(expr->ival);
+                break;
+            default:
+                throw SQLExecError("unrecognized INSERT data type");
+        }
+        values[to_string(valCount)] = val;
+        valCount++;
+    }
+    
+    //build the row
+    ValueDict row;
+    for(u_int i = 0; i < column_names.size(); i++) {
+        row[column_names.at(i)] = values[to_string(i)];
+    }
+    
+    //insert the row
+    Handle t_handle = table.insert(&row);
+    
+    string suffix = "";
+    stringstream ss;
+    IndexNames index_names = indices->get_index_names(statement->tableName);
+    for(u_int i = 0; i < index_names.size(); i++) {
+        DbIndex& index = indices->get_index(statement->tableName, index_names[i]);
+        index.insert(t_handle);
+        if(i + 1 >= index_names.size()) {
+            ss << i+1;
+            suffix = " and " + ss.str() + " indices";
+        }
+    }
+    
+    return new QueryResult("successfully inserted 1 row into " + string(statement->tableName) + suffix);  // FIXME
+}
+
+ValueDict* get_where_conjunction(const Expr *expr) {
+    //recursively pull out ANDs and =s
+    //build a ValueDict where
+    
+    ValueDict *where = new ValueDict();
+    
+    switch(expr->opType) {
+        case Expr::SIMPLE_OP: {
+            if(expr->opChar == '=') {
+                if(expr->expr2->type == kExprLiteralInt)
+                    where->emplace(string(expr->expr->name), Value(expr->expr2->ival));
+                else if (expr->expr2->type == kExprLiteralString)
+                    where->emplace(string(expr->expr->name), Value(expr->expr2->name));
+                else
+                    throw SQLExecError("unrecognized literal type");
+            }
+            else
+                throw SQLExecError("unrecognized operation type");
+            break;
+        }
+        case Expr::AND: {
+            //get both expressions, recurse
+            ValueDict* where2 = get_where_conjunction(expr->expr);
+            ValueDict* where3 = get_where_conjunction(expr->expr2);
+            where->insert(where2->begin(), where2->end());
+            where->insert(where3->begin(), where3->end());
+            delete where2;
+            delete where3;
+            break;
+        }
+        default:
+            throw SQLExecError("unrecognized operation type");
+            break;
+    }
+    return where;
+}
+
+QueryResult *SQLExec::del(const DeleteStatement *statement) {
+    
+    //get the table
+    DbRelation& table = SQLExec::tables->get_table(statement->tableName);
+    
+    //start base of plan at a tablescan
+    EvalPlan *plan = new EvalPlan(table);
+    
+    //enclose it in a Select if we have a where clause
+    if (statement->expr != nullptr)
+        plan = new EvalPlan(get_where_conjunction(statement->expr), plan);
+    
+    EvalPlan *optimized = plan->optimize();
+    EvalPipeline pipeline = optimized->pipeline();
+    
+    //get the indices and handles 
+    IndexNames index_names = indices->get_index_names(statement->tableName);
+    Handles *handles = pipeline.second;
+    
+    stringstream ss;
+    string suffix = "";
+    
+    //delete all handles from each index
+    for(u_int i = 0; i < index_names.size(); i++) {
+        DbIndex& index = indices->get_index(statement->tableName, index_names[i]);
+        for (auto const& handle : *handles) {
+            index.del(handle);
+        }
+        if(i + 1 >= index_names.size()) {
+            ss << i+1;
+            suffix = " and " + ss.str() + " indices";
+        }
+    }
+    
+    //delete all handles from the table
+    u_int rowCount = 0;
+    for (auto const& handle : *handles) {
+        table.del(handle);
+        rowCount++;
+    }
+    
+    ss.str("");
+    ss << rowCount;
+    
+    return new QueryResult("successfully deleted " + ss.str() + " rows from " + string(statement->tableName) + suffix);
+}
+
+QueryResult *SQLExec::select(const SelectStatement *statement) {
+    
+    //get the table
+    DbRelation& table = SQLExec::tables->get_table(statement->fromTable->name);
+    
+    //start base of plan at a tablescan
+    EvalPlan *plan = new EvalPlan(table);
+    
+    //enclose it in a Select if we have a where clause
+    if (statement->whereClause != nullptr)
+        plan = new EvalPlan(get_where_conjunction(statement->whereClause), plan);
+    
+    //determine column names
+    ColumnNames *column_names = new ColumnNames;
+    for (Expr *expr : *statement->selectList) {
+        if(expr->type == kExprStar)
+            *column_names = table.get_column_names();
+        else
+            column_names->push_back(expr->name);
+    }
+    
+    //wrap in a project (not using projectall b/c not needed the way columns are done)
+    plan = new EvalPlan(column_names, plan);
+        
+    //optimize the plan and evaluate the optimized plan
+    EvalPlan *optimized = plan->optimize();
+    ValueDicts *rows = optimized->evaluate();
+    
+    u_int rowNum = rows->size();
+    stringstream ss;
+    ss << rowNum;
+    
+    //get column attributes for returning in queryResult
+    ColumnAttributes *column_attributes = table.get_column_attributes(*column_names);
+    
+    return new QueryResult(column_names, column_attributes, rows, "successfully returned " + ss.str() + " rows");
 }

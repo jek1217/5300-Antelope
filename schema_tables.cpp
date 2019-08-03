@@ -412,3 +412,4 @@ IndexNames Indices::get_index_names(Identifier table_name) {
     delete handles;
     return ret;
 }
+
