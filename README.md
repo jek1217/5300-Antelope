@@ -1,73 +1,187 @@
 # 5300-Antelope
 
+**Joshua Halbert, Somya Kajla**  
+*Seattle University, CPSC5300, Summer 2019*
 
-## Sprint Verano: Vishakha Bhavsar and Virmel Gacad
+### Assignment Requirements
 
-Milestone 1: Skeleton
+This file fulfills the requirements of **Milestone 5** by doing the following:
 
-  -Sets up Berkeley DB environment
-  -Uses SQLParserResult
-  -sql5300 is the main driver program, being the default makefile target
-  
-  
-  
-Milestone 2: Rudimentary Storage Engine
+1. Implements INSERT successfully, including inserting into indices
+2. Implements SELECT * FROM table using EvalPlan successfully
+3. Implements more complicated SELECTs (supporting **=** and **AND**)
+4. Implements DELETE using EvalPlan successfully, including deleting from indices
 
+### Compiling and Usage
 
-  We have gotten mixed results with output/testing in regards to Milestone 2. Virmel has gotten the program to compile but
-  reaches a library shared error when trying to run it. Vishakha has gotten to compile the program, run the program, and
-  complete the test_heap_storage() test function. We have done all our work solely on CS1, so we do not know if our program works
-  outside of CS1 as well.
-  
-  
-  Our files include:
-  
-  -storage_engine.h, which was given to us
-  -heap_storage.h
-  -heap_storage.cpp
-  -sql5300.cpp
-  -Makefile
-  
-  
-  Quirks:
-  
-  -Memory management could be looked into. 
-  -Random quick-thought comments could be found throughout.
-  
-  
-## Spring Ontono: Jake and Maggie
-Milestones 3 and 4
+- To compile, run `make` in the file directory.
+	- Optionally, run `make clean` then `make` to rebuild all files from scratch.
+- To run after compliation, run `./sql5300 *writeable directory relative to executable*`
+	- *relative to the executable* means another directory in the same directory as the project files.
+	- For example, after compiling, you might run `mkdir data` followed by `./sql5300 data`.
+- Given the `SQL>` prompt, you may enter a SQL statement or `quit`, which will close the database and end the program.
 
-We submitted fixes for the issues noted above in milestones 1 and 2.
-  
-Main methods to look at are as follows and exist in the SQLExec.cpp file:
+### Test Results
 
- - create_table: creates table if it doesn't already exist and has a valid name
- - drop_table: drops a table on the condition that it already exists and removes  references in schema tables
- - show_table: shows tables  in database excluding our schema tables (_tables, _columns, _indices)
- - show_columns: shows the columns of a particular table determined by the user-proffered SQL statement
- - create_index: creates an index if it doesn't already exist and has a valid name
- - drop_index: drops an index on the condition that it already exists
- - show_index: shows the index(es) associated with with the following information:
- - - table name
- - - index name
- - - column name
- - - sequence in the index
- - - index type
- - - is unique
- 
-Directions to run:
+Current version is passing all the tests in the Milestone 5 requirements, as shown:
 
-In the 5300-Antelope directory enter the following commands:
-
-1. make
-2. mkdir data
-3. ./sql5300 data
- 
-Directions to clean:
-
-In the 5300-Antelope directory enter the following commands:
-
-1. rm -rf data
-2. make clean
-
+	[halbertj@cs1 sql5300]$ ./sql5300 data
+	(sql5300: running with database environment at data)
+	SQL> show tables
+	SHOW TABLES
+	table_name 
+	+----------+
+	"goober" 
+	successfully returned 1 rows
+	SQL> create table foo (id int, data text)
+	CREATE TABLE foo (id INT, data TEXT)
+	created foo
+	SQL> show tables
+	SHOW TABLES
+	table_name 
+	+----------+
+	"goober" 
+	"foo" 
+	successfully returned 2 rows
+	SQL> show columns from foo
+	SHOW COLUMNS FROM foo
+	table_name column_name data_type 
+	+----------+----------+----------+
+	"foo" "id" "INT" 
+	"foo" "data" "TEXT" 
+	successfully returned 2 rows
+	SQL> create index fx on foo (id)
+	CREATE INDEX fx ON foo USING BTREE (id)
+	created index fx
+	SQL> create index fz on foo (data)
+	CREATE INDEX fz ON foo USING BTREE (data)
+	created index fz
+	SQL> show index from foo 
+	SHOW INDEX FROM foo
+	table_name index_name column_name seq_in_index index_type is_unique 
+	+----------+----------+----------+----------+----------+----------+
+	"foo" "fx" "id" 1 "BTREE" true 
+	"foo" "fz" "data" 1 "BTREE" true 
+	successfully returned 2 rows
+	SQL> insert into foo (id, data) values (1,"one")
+	INSERT INTO foo (id, data) VALUES (1, "one")
+	successfully inserted 1 row into foo and 2 indices
+	SQL> select * from foo
+	SELECT * FROM foo
+	id data 
+	+----------+----------+
+	1 "one" 
+	successfully returned 1 rows
+	SQL> insert into foo values (2, "Two"); insert into foo values (3, "Three"); insert into foo values (99, "wowzers, Penny!!")
+	INSERT INTO foo VALUES (2, "Two")
+	successfully inserted 1 row into foo and 2 indices
+	INSERT INTO foo VALUES (3, "Three")
+	successfully inserted 1 row into foo and 2 indices
+	INSERT INTO foo VALUES (99, "wowzers, Penny!!")
+	successfully inserted 1 row into foo and 2 indices
+	SQL> select * from foo
+	SELECT * FROM foo
+	id data 
+	+----------+----------+
+	1 "one" 
+	2 "Two" 
+	3 "Three" 
+	99 "wowzers, Penny!!" 
+	successfully returned 4 rows
+	SQL> select * from foo where id=3
+	SELECT * FROM foo WHERE id = 3
+	id data 
+	+----------+----------+
+	3 "Three" 
+	successfully returned 1 rows
+	SQL> select * from foo where id=1 and data="one"
+	SELECT * FROM foo WHERE id = 1 AND data = "one"
+	id data 
+	+----------+----------+
+	1 "one" 
+	successfully returned 1 rows
+	SQL> select * from foo where id=99 and data="nine"
+	SELECT * FROM foo WHERE id = 99 AND data = "nine"
+	id data 
+	+----------+----------+
+	successfully returned 0 rows
+	SQL> select id from foo
+	SELECT id FROM foo
+	id 
+	+----------+
+	1 
+	2 
+	3 
+	99 
+	successfully returned 4 rows
+	SQL> select data from foo where id=1
+	SELECT data FROM foo WHERE id = 1
+	data 
+	+----------+
+	"one" 
+	successfully returned 1 rows
+	SQL> delete from foo where id=1
+	DELETE FROM foo WHERE id = 1
+	successfully deleted 1 rows from foo and 2 indices
+	SQL> select * from foo
+	SELECT * FROM foo
+	id data 
+	+----------+----------+
+	2 "Two" 
+	3 "Three" 
+	99 "wowzers, Penny!!" 
+	successfully returned 3 rows
+	SQL> delete from foo
+	DELETE FROM foo
+	successfully deleted 3 rows from foo and 2 indices
+	SQL> select * from foo
+	SELECT * FROM foo
+	id data 
+	+----------+----------+
+	successfully returned 0 rows
+	SQL> insert into foo values (2, "Two"); insert into foo values (3, "Three"); insert into foo values (99, "wowzers, Penny!!")
+	INSERT INTO foo VALUES (2, "Two")
+	successfully inserted 1 row into foo and 2 indices
+	INSERT INTO foo VALUES (3, "Three")
+	successfully inserted 1 row into foo and 2 indices
+	INSERT INTO foo VALUES (99, "wowzers, Penny!!")
+	successfully inserted 1 row into foo and 2 indices
+	SQL> select * from foo
+	SELECT * FROM foo
+	id data 
+	+----------+----------+
+	2 "Two" 
+	3 "Three" 
+	99 "wowzers, Penny!!" 
+	successfully returned 3 rows
+	SQL> drop index fz from foo
+	DROP INDEX fz FROM foo
+	dropped index fz
+	SQL> show index from foo
+	SHOW INDEX FROM foo
+	table_name index_name column_name seq_in_index index_type is_unique 
+	+----------+----------+----------+----------+----------+----------+
+	"foo" "fx" "id" 1 "BTREE" true 
+	successfully returned 1 rows
+	SQL> insert into foo (id) VALUES (100)
+	INSERT INTO foo (id) VALUES (100)
+	Error: DbRelationError: don't know how to handle NULLs, defaults, etc. yet
+	SQL> select * from foo
+	SELECT * FROM foo
+	id data 
+	+----------+----------+
+	2 "Two" 
+	3 "Three" 
+	99 "wowzers, Penny!!" 
+	successfully returned 3 rows
+	SQL> drop table foo
+	DROP TABLE foo
+	dropped foo
+	SQL> show tables
+	SHOW TABLES
+	table_name 
+	+----------+
+	"goober" 
+	successfully returned 1 rows
+	SQL> quit
+	[halbertj@cs1 sql5300]$
