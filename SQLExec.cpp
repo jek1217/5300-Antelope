@@ -1,11 +1,12 @@
+//Completed Milestone 5 by Joshua Halbert
+//still needs cleaning and commenting before delivery
+//all tests pass
+
 /**
  * @file SQLExec.cpp - implementation of SQLExec class 
- * @author Joshua Halbert, Somja Kajla
+ * @author Kevin Lundeen
  * @see "Seattle University, CPSC5300, Summer 2018"
- * Credit: Based on SQLExec.cpp and SQLExec.py (Prof. Lundeen, CPSC5300)
- * Milestone 5 only
  */
-
 #include <algorithm>
 #include "SQLExec.h"
 #include "EvalPlan.h"
@@ -14,11 +15,9 @@
 using namespace std;
 using namespace hsql;
 
-// define static data
 Tables* SQLExec::tables = nullptr;
 Indices* SQLExec::indices = nullptr;
 
-// make query result be printable
 ostream &operator<<(ostream &out, const QueryResult &qres) {
     if (qres.column_names != nullptr) {
         for (auto const &column_name: *qres.column_names)
@@ -52,9 +51,6 @@ ostream &operator<<(ostream &out, const QueryResult &qres) {
     return out;
 }
 
-// Usage: QueryResult destructor
-// @param: None
-// @return: None (destructor)
 QueryResult::~QueryResult() {
     if (column_names != nullptr)
         delete column_names;
@@ -67,10 +63,9 @@ QueryResult::~QueryResult() {
     }
 }
 
-// Usage: execute a hyrise statement object
-// @param: hyrise statement pointer
-// @return: by way of other functions, a pointer to a QueryResult object
+
 QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError) {
+    // initialize _tables table, if not yet present
     if (SQLExec::tables == nullptr) {
         SQLExec::tables = new Tables();
 		SQLExec::indices = new Indices();
@@ -98,15 +93,17 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
     }
 }
 
-// Usage: execute a hyrise statement object
-// @param: ColumnDefinition pointer, Identifier column name, and Column_Attribute
-// @return: by way of other functions, a pointer to a QueryResult object
 QueryResult *SQLExec::insert(const InsertStatement *statement) {
-	
+    //construct the ValueDict row
+    //insert the ValueDict row
+    //also add to any indices
+    //useful methods are get_table, get_index_names, and get_index
+    //column order may differ from other in table def.
+    
     //get the table
     DbRelation& table = SQLExec::tables->get_table(statement->tableName);
    
-    //get the columns
+    //get the columns FIXME what if there are none given?
     ColumnNames column_names;
     
     //handle if no columns given (pretend default order)
@@ -161,13 +158,12 @@ QueryResult *SQLExec::insert(const InsertStatement *statement) {
         }
     }
     
-    return new QueryResult("successfully inserted 1 row into " + string(statement->tableName) + suffix);
+    return new QueryResult("successfully inserted 1 row into " + string(statement->tableName) + suffix);  // FIXME
 }
 
-// Usage: extract a "where" ValueDict from a hyrise expression conjunction (AND and = supported)
-// @param: hyrise expression
-// @return: ValueDict pointer (where)
 ValueDict* get_where_conjunction(const Expr *expr) {
+    //recursively pull out ANDs and =s
+    //build a ValueDict where
     
     ValueDict *where = new ValueDict();
     
@@ -202,9 +198,6 @@ ValueDict* get_where_conjunction(const Expr *expr) {
     return where;
 }
 
-// Usage: delete rows from table, indices
-// @param: Hyrise DeleteStatement
-// @return: Pointer to a QueryResult object
 QueryResult *SQLExec::del(const DeleteStatement *statement) {
     
     //get the table
@@ -252,9 +245,6 @@ QueryResult *SQLExec::del(const DeleteStatement *statement) {
     return new QueryResult("successfully deleted " + ss.str() + " rows from " + string(statement->tableName) + suffix);
 }
 
-// Usage: select rows from table
-// @param: Hyrise SelectStatement
-// @return: Pointer to a QueryResult object
 QueryResult *SQLExec::select(const SelectStatement *statement) {
     
     //get the table
@@ -293,9 +283,6 @@ QueryResult *SQLExec::select(const SelectStatement *statement) {
     return new QueryResult(column_names, column_attributes, rows, "successfully returned " + ss.str() + " rows");
 }
 
-// Usage: execute a hyrise statement object
-// @param: ColumnDefinition pointer, Identifier column name, and Column_Attribute
-// @return: by way of other functions, a pointer to a QueryResult object
 void SQLExec::column_definition(const ColumnDefinition *col, Identifier& column_name,
                                 ColumnAttribute& column_attribute) {
     column_name = col->name;
@@ -312,9 +299,6 @@ void SQLExec::column_definition(const ColumnDefinition *col, Identifier& column_
     }
 }
 
-// Usage: routes a CreateStatement to the appropriate function (table or index)
-// @param: hyrise statement pointer
-// @return: by way of other functions, a pointer to a QueryResult object
 QueryResult *SQLExec::create(const CreateStatement *statement) {
     switch(statement->type) {
         case CreateStatement::kTable:
@@ -326,9 +310,6 @@ QueryResult *SQLExec::create(const CreateStatement *statement) {
     }
 }
  
-// Usage: creates a table in the database, adds details to schema files
-// @param: hyrise statement pointer
-// @return: pointer to a QueryResult object
 QueryResult *SQLExec::create_table(const CreateStatement *statement) {
     Identifier table_name = statement->tableName;
     ColumnNames column_names;
@@ -381,10 +362,6 @@ QueryResult *SQLExec::create_table(const CreateStatement *statement) {
     return new QueryResult("created " + table_name);
 }
 
-
-// Usage: creates an index (dummy for now) in the database, adds details to schema files
-// @param: hyrise statement pointer
-// @return: pointer to a QueryResult object
 QueryResult *SQLExec::create_index(const CreateStatement *statement) {
     Identifier index_name = statement->indexName;
     Identifier table_name = statement->tableName;
@@ -427,9 +404,7 @@ QueryResult *SQLExec::create_index(const CreateStatement *statement) {
     return new QueryResult("created index " + index_name);
 }
 
-// Usage: routes a DropStatement to the appropriate function (table or index)
-// @param: hyrise statement pointer
-// @return: by way of other functions, a pointer to a QueryResult object
+// DROP ...
 QueryResult *SQLExec::drop(const DropStatement *statement) {
     switch(statement->type) {
         case DropStatement::kTable:
@@ -441,9 +416,6 @@ QueryResult *SQLExec::drop(const DropStatement *statement) {
     }
 }
  
-// Usage: drops a table in the database, drops indexes on it first, removes details from schema files
-// @param: hyrise statement pointer
-// @return: pointer to a QueryResult object
 QueryResult *SQLExec::drop_table(const DropStatement *statement) {
     Identifier table_name = statement->name;
     if (table_name == Tables::TABLE_NAME || table_name == Columns::TABLE_NAME)
@@ -481,9 +453,6 @@ QueryResult *SQLExec::drop_table(const DropStatement *statement) {
     return new QueryResult(string("dropped ") + table_name);
 }
 
-// Usage: drops an index in the database, removes details from schema files
-// @param: hyrise statement pointer
-// @return: pointer to a QueryResult object
 QueryResult *SQLExec::drop_index(const DropStatement *statement) {
     Identifier table_name = statement->name;
     Identifier index_name = statement->indexName;
@@ -504,9 +473,6 @@ QueryResult *SQLExec::drop_index(const DropStatement *statement) {
     return new QueryResult("dropped index " + index_name);
 }
 
-// Usage: routes a ShowStatement to the appropriate function (table, index, or columns)
-// @param: hyrise statement pointer
-// @return: by way of other functions, a pointer to a QueryResult object
 QueryResult *SQLExec::show(const ShowStatement *statement) {
     switch (statement->type) {
         case ShowStatement::kTables:
@@ -520,9 +486,6 @@ QueryResult *SQLExec::show(const ShowStatement *statement) {
     }
 }
 
-// Usage: return a list of indices on a given table
-// @param: hyrise statement pointer
-// @return: QueryResult object
 QueryResult *SQLExec::show_index(const ShowStatement *statement) {
     ColumnNames* column_names = new ColumnNames;
     ColumnAttributes* column_attributes = new ColumnAttributes;
@@ -559,9 +522,6 @@ QueryResult *SQLExec::show_index(const ShowStatement *statement) {
                            "successfully returned " + to_string(n) + " rows");
 }
 
-// Usage: return a list of tables in the db
-// @param: none
-// @return: QueryResult object pointer
 QueryResult *SQLExec::show_tables() {
     ColumnNames* column_names = new ColumnNames;
     column_names->push_back("table_name");
@@ -588,9 +548,6 @@ QueryResult *SQLExec::show_tables() {
                            "successfully returned " + to_string(n) + " rows");
 }
 
-// Usage: return a list of columns associated with a given table in the db
-// @param: hyrise statement pointer
-// @return: QueryResult object pointer
 QueryResult *SQLExec::show_columns(const ShowStatement *statement) {
     DbRelation& columns = SQLExec::tables->get_table(Columns::TABLE_NAME);
 
@@ -616,3 +573,4 @@ QueryResult *SQLExec::show_columns(const ShowStatement *statement) {
     return new QueryResult(column_names, column_attributes, rows,
                            "successfully returned " + to_string(n) + " rows");
 }
+
