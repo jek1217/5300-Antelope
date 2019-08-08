@@ -47,9 +47,6 @@ int main(int argc, char *argv[]) {
 			break;  // only way to get out
 		if (query == "test") {
 			cout << "test_heap_storage: " << (test_heap_storage() ? "ok" : "failed") << endl;
-			continue;
-		}
-		if (query == "btest") {
 			cout << "test_btree: " << (test_btree() ? "ok" : "failed") << endl;
 			continue;
 		}

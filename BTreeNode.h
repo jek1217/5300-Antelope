@@ -69,6 +69,8 @@ public:
 
     void set_first(BlockID first) { this->first = first; }
 
+    friend std::ostream &operator<<(std::ostream &out, const BTreeInterior &node);
+
 protected:
     BlockID first;
     BlockPointers pointers;

@@ -126,8 +126,18 @@ void SlottedPage::put_header(RecordID id, u16 size, u16 loc) {
 // Calculate if we have room to store a record with given size. The size should include the 4 bytes
 // for the header, too, if this is an add.
 bool SlottedPage::has_room(u16 size) const {
-	u16 available = this->end_free - (u16)(4*(this->num_records+2));
-	return size <= available;
+	return size + (u16)4 <= this->unused_bytes();
+}
+
+// Get the number of bytes not currently used to store data or for overhead.
+u16 SlottedPage::unused_bytes() const {
+	u16 headers = (u16)(4*(this->num_records+1));
+	u16 unused;
+	if (this->end_free <= headers)
+		unused = 0;
+	else
+		unused = this->end_free - headers;
+	return unused;
 }
 
 // If start < end, then remove data from offset start up to but not including offset end by sliding data
@@ -493,7 +503,7 @@ ValueDict* HeapTable::unmarshal(Dbt* data) const {
     uint col_num = 0;
     for (auto const& column_name: this->column_names) {
     	ColumnAttribute ca = this->column_attributes[col_num++];
-		value.data_type = ca.get_data_type();
+		value.data_type = ca.get_data_type(); value.s = "";
     	if (ca.get_data_type() == ColumnAttribute::DataType::INT) {
     		value.n = *(int32_t*)(bytes + offset);
     		offset += sizeof(int32_t);
@@ -538,12 +548,16 @@ bool test_compare(DbRelation &table, Handle handle, int a, string b) {
 		return false;
 	}
 	value = (*result)["b"];
-	delete result;
-    if (value.s != b)
-        return false;
+    if (value.s != b) {
+		delete result;
+		return false;
+	}
     value = (*result)["c"];
-    if (value.n != (a%2 == 0))
-        return false;
+    if (value.n != (a%2 == 0)) {
+		delete result;
+		return false;
+	}
+	delete result;
     return true;
 }
 

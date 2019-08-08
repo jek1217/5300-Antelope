@@ -104,6 +104,12 @@ public:
 	virtual u_int16_t size() const = 0;
 
 	/**
+	 * Get the number of bytes not currently used to store data or for overhead.
+	 * @returns  number of unused bytes
+	 */
+	virtual u_int16_t unused_bytes() const = 0;
+
+	/**
 	 * Access the whole block's memory as a BerkeleyDB Dbt pointer.
 	 * @returns  Dbt used by this block
 	 */ 
@@ -235,6 +241,8 @@ public:
 	bool operator==(const Value &other) const;
 	bool operator!=(const Value &other) const;
 	bool operator<(const Value &other) const;
+
+	friend std::ostream &operator<<(std::ostream &out, const Value &value);
 };
 
 // More type aliases

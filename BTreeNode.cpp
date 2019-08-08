@@ -230,6 +230,7 @@ void BTreeInterior::save() {
     Dbt *dbt;
     this->block->clear();
     dbt = marshal_block_id(this->first);
+    this->block->add(dbt);
     delete[] (char *) dbt->get_data();
     delete dbt;
     for (uint i = 0; i < this->boundaries.size(); i++) {
@@ -250,6 +251,9 @@ void BTreeInterior::save() {
 
 // Insert boundary, block_id pair into block.
 Insertion BTreeInterior::insert(const KeyValue* boundary, BlockID block_id) {
+    //cout << "inserting (" << block_id << ", " << (*boundary)[0] << ") into interior node " << id; // DEBUG
+    //cout << " (pointers:" << boundaries.size() << ", unused:" << block->unused_bytes() << ") " << endl; // DEBUG
+
     Dbt *dbt;
 
     bool inserted = false;
@@ -283,6 +287,7 @@ Insertion BTreeInterior::insert(const KeyValue* boundary, BlockID block_id) {
         return BTreeNode::insertion_none();
 
     } catch (DbBlockNoRoomError &e) {
+        //cout << "splitting " << *this << endl; // DEBUG
         delete[] (char *) dbt->get_data();
         delete dbt;
 
@@ -306,6 +311,8 @@ Insertion BTreeInterior::insert(const KeyValue* boundary, BlockID block_id) {
         }
         this->boundaries.erase(this->boundaries.begin() + split, this->boundaries.end());
         this->pointers.erase(this->pointers.begin() + split, this->pointers.end());
+        //cout << "after split " << *this << endl; // DEBUG
+        //cout << "new sibling " << *nnode << endl; // DEBUG
 
         // save everything
         nnode->save();
@@ -314,6 +321,17 @@ Insertion BTreeInterior::insert(const KeyValue* boundary, BlockID block_id) {
     }
 }
 
+
+ostream &operator<<(ostream &out, const BTreeInterior &node) {
+    out << "(interior block " << node.id << "): " << node.first;
+    if (node.boundaries.size() != node.pointers.size()) {
+        out << " MISMATCH boundaries: " << node.boundaries.size() << ", pointers: " << node.pointers.size();
+    } else {
+        for (unsigned int i = 0; i < node.boundaries.size(); i++)
+            out << '|' << (*node.boundaries[i])[0] << '|' << node.pointers[i];
+    }
+    return out;
+}
 
 
 /*************
@@ -376,6 +394,7 @@ void BTreeLeaf::save() {
 
 // Insert key, handle pair into block.
 Insertion BTreeLeaf::insert(const KeyValue* key, Handle handle) {
+    //cout << "inserting " << (*key)[0] << " into leaf " << id << endl; // DEBUG
     // check unique
     if (this->key_map.find(*key) != this->key_map.end())
         throw DbRelationError("Duplicate keys are not allowed in unique index");
@@ -426,6 +445,8 @@ Insertion BTreeLeaf::insert(const KeyValue* key, Handle handle) {
             }
             i++;
         }
+        //cout << "splitting leaf " << id << ", new sibling " << nleaf->id; // DEBUG
+        //cout << " starting at value " << boundary[0] << endl; // DEBUG
 
         nleaf->save();
         this->save();
